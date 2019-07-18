@@ -1,0 +1,11 @@
+install.packages("tidyverse")
+install.packages("viridis")
+library(tidyverse)
+library(viridis)
+library(nycflights13)
+library("ggbeeswarm")
+diamonds %>% count(cut)
+
+smaller <- diamonds %>% filter (carat<3)
+ggplot(data=smaller, mapping=aes(x=carat)) + geom_histogram (binwidth=0.05)
+summary (select(diamonds, x,y,z))
