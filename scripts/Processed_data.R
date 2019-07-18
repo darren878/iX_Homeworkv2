@@ -72,3 +72,7 @@ df_2 <- df_2 %>% filter(working==0|(!is.na(job_start_date)&!is.na(job_leave_date
 df_2 <- mutate (df_2, loe_morethan6months = factor(ifelse(length_of_employment>180,1,0)))
 df_2$loe_morethan6months[is.na(df_2$loe_morethan6months)] <- 0
 table(df_2$loe_morethan6months)
+
+write.csv(df, 'data/processed/dataframe1.csv')
+
+write.csv(df_2, 'data/processed/dataframe2.csv')
