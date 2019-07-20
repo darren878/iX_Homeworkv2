@@ -11,7 +11,7 @@ library(cluster)
 options(scipen=999)
 
 df_cluster_n <- df_2 %>%
-  filter(!is.na(age_at_survey) & !is.na(fin_situ_change) & !is.na(grit_score))
+  filter(!is.na(age_at_survey) & !is.na(fin_situ_change) & !is.na(grit_score) &!is.na(opt_score))
 
 df_unid <- df_cluster_n %>%
   select(unid)
