@@ -53,7 +53,7 @@ summary(reg2)
 reg3 <- lm(loe_morethan6months ~ gender*as.factor(h5), data=df_cluster_n)
 summary(reg3)
 
-# Supervised ML
+# Supervised ML - Decision Tree
 install.packages("caret")
 install.packages("skimr")
 install.packages("RANN")
@@ -72,6 +72,7 @@ df_3 <- mutate(df_3,
                numchildren = as.numeric(numchildren),
                numearnincome = as.numeric(numearnincome))
 
+# Impute numeric variables (e.g. age and test scores)
 preProcess_missingdata_model <- preProcess(df_3, method="knnImpute")
 df_3 <- predict(preProcess_missingdata_model, newdata = df_3)
 
@@ -95,4 +96,20 @@ trControl <- trainControl(method = "cv", number=10, verboseIter = TRUE)
 model_rpart <- train(loe_morethan6months ~., data=trainData, method="rpart", trControl=trControl, tuneGrid=expand.grid(cp=seq(0.000,0.02,0.0025)))
 predicted <- predict(model_rpart, testData[,-length(testData)])
 model_rpart$results
+
+# Confusion Matrix
+table(predicted, testData$loe_morethan6months)
+
+# Ensemble Method
+install.packages("xgboost")
+library(xgboost)
+data(trainData, package="xgboost")
+d
+bst <- xgboost(data=trainData$df_3, label = trainData$label, max_depth=5, num_parallel_tree=1000, subsample=0.5, colsample_bytree=0.5, nrounds=1, objective="binary:logistic")
+
+
+
+
+
+
 
