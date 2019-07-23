@@ -5,7 +5,7 @@ df_2 <- read.csv("data/processed/dataframe2.csv")
 # Percentage of individuals employed more than 6 months is 0.067
 table(df_2$loe_morethan6months)
 
-# Unsupervised ML
+# Section A: Unsupervised ML
 install.packages("cluster")
 library(cluster)
 options(scipen=999)
@@ -53,7 +53,7 @@ summary(reg2)
 reg3 <- lm(loe_morethan6months ~ gender*as.factor(h5), data=df_cluster_n)
 summary(reg3)
 
-# Supervised ML - Decision Tree
+# Section B: Supervised ML - Decision Tree
 install.packages("caret")
 install.packages("skimr")
 install.packages("RANN")
@@ -100,16 +100,106 @@ model_rpart$results
 # Confusion Matrix
 table(predicted, testData$loe_morethan6months)
 
-# Ensemble Method
+# Section C: XGBoost Model
+install.packages("tidyverse")
+install.packages("RANN")
+install.packages("caret")
+install.packages("skimr")
 install.packages("xgboost")
+library(tidyverse)
+library(RANN)
+library(caret)
+library(skimr)
 library(xgboost)
-data(trainData, package="xgboost")
-d
-bst <- xgboost(data=trainData$df_3, label = trainData$label, max_depth=5, num_parallel_tree=1000, subsample=0.5, colsample_bytree=0.5, nrounds=1, objective="binary:logistic")
+df_2 <- read.csv("data/processed/dataframe2.csv")
 
+# Data cleaning : removal of variables + imputation
+df_4 <- select(df_2, -c(X.1, X, survey_date_month, survey_num, working, job_start_date, job_leave_date, financial_situation_now, financial_situation_5years, age, fin_situ_now, fin_situ_future, com_score, num_score, company_size, monthly_pay, length_of_employment, peoplelive_15plus, province, dob))
+df_4 <- df_4 %>% filter(!is.na(volunteer), !is.na(leadershiprole), !is.na(peoplelive), !is.na(anygrant), !is.na(anyhhincome), !is.na(givemoney_yes))
+df_4 <- mutate(df_4,
+               loe_morethan6months = factor(loe_morethan6months),
+               anygrant = factor(anygrant),
+               anyhhincome = factor(anygrant),
+               givemoney_yes = factor(anygrant),
+               numchildren = as.numeric(numchildren),
+               numearnincome = as.numeric(numearnincome))
+preProcess_missingdata_model <- preProcess(df_4, method="knnImpute")
+df_4 <- predict(preProcess_missingdata_model, newdata = df_4)
 
+# Copying code from https://www.analyticsvidhya.com/blog/2016/01/xgboost-algorithm-easy-steps/ ----------
+# -------
 
+# Dummy Variables
+dummies_model <- dummyVars(loe_morethan6months ~., data=df_4)
+df_4_loe_morethan6months <- df_4$loe_morethan6months
+df_4_mat <- predict(dummies_model, newdata=df_4)
+df_4 <- data.frame(df_4_mat)
+df_4$loe_morethan6months <- df_4_loe_morethan6months
 
+# Splitting Data
+set.seed(100)
+trainRowNumbers <- createDataPartition(df_4$loe_morethan6months, p=0.8, list=FALSE)
+trainData <- df_4[trainRowNumbers,]
+testData <- df_4[-trainRowNumbers,]
 
+# Loading labels of train data
+labels = trainData ['loe_morethan6months']
+trainData = trainData [-grep('loe_morethan6months', colnames(trainData))]
 
+# Combine train and test data
+df_all <- df_4[-grep('loe_morethan6months',colnames(df_4))]
+X = df_all[df_all$unid %in% trainData$unid,]
+X_test = df_all[df_all$unid %in% testData$unid,]
 
+# Converting labels into a matrix
+mat_y <- as.matrix(labels)
+xgb <- xgboost(data = data.matrix(X[,-1]),
+               label = mat_y,
+               eta = 0.3,
+               max_depth = 15,
+               nround=100,
+               objective = "binary:logistic",
+               booster = "gbtree",
+               subsample = 0.8,
+               scale_pos_weight = 0.5
+)
+
+#Testing the results of our model
+z_pred <- predict(xgb, data.matrix(X_test[,-1]))
+z_pred <- ifelse(z_pred>0.5,1,0)
+summary(z_pred)
+table(z_pred)
+table(z_pred, testData$loe_morethan6months)
+
+# Tuning the parameters
+tune_grid <- expand.grid(
+  nrounds = seq(from = 200, to = nrounds),
+  eta = c(0.025, 0.05, 0.1, 0.3),
+  max_depth = c(2, 3, 4, 5, 6),
+  gamma = 0,
+  colsample_bytree = 1,
+  min_child_weight = 1,
+  subsample = 0.8
+)
+
+tune_control <- caret::trainControl(
+  method = "cv", # cross-validation
+  number = 3, # with n folds
+  #index = createFolds(tr_treated$Id_clean), # fix the folds
+  verboseIter = FALSE, # no training log
+  allowParallel = TRUE # FALSE for reproducible results
+)
+
+# We should be using TrainData instead of TestData but we have to include loe_morethan6months in TrainData first
+xgb_tune <- caret::train(loe_morethan6months ~ ., data=testData,
+                         method='xgbTree',
+                         verbose = TRUE,
+                         trControl = tune_control,
+                         tuneGrid = tune_grid,
+                         nthread = 4)
+xgb_tune$bestTune
+
+# Finding most important variables
+names <- dimnames(data.matrix(X[,-1]))[[2]]
+importance_matrix <- xgb.importance(names, model=xgb)
+xgb.plot.importance(importance_matrix[1:10,])
