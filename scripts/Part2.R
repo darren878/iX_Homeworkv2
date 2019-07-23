@@ -130,26 +130,26 @@ df_4 <- predict(preProcess_missingdata_model, newdata = df_4)
 # -------
 
 # Dummy Variables
-dummies_model <- dummyVars(loe_morethan6months ~., data=df_4)
+dummies_model2 <- dummyVars(loe_morethan6months ~., data=df_4)
 df_4_loe_morethan6months <- df_4$loe_morethan6months
-df_4_mat <- predict(dummies_model, newdata=df_4)
+df_4_mat <- predict(dummies_model2, newdata=df_4)
 df_4 <- data.frame(df_4_mat)
 df_4$loe_morethan6months <- df_4_loe_morethan6months
 
 # Splitting Data
 set.seed(100)
-trainRowNumbers <- createDataPartition(df_4$loe_morethan6months, p=0.8, list=FALSE)
-trainData <- df_4[trainRowNumbers,]
-testData <- df_4[-trainRowNumbers,]
+trainRowNumbers2 <- createDataPartition(df_4$loe_morethan6months, p=0.8, list=FALSE)
+trainData2 <- df_4[trainRowNumbers2,]
+testData2 <- df_4[-trainRowNumbers2,]
 
 # Loading labels of train data
-labels = trainData ['loe_morethan6months']
-trainData = trainData [-grep('loe_morethan6months', colnames(trainData))]
+labels = trainData2 ['loe_morethan6months']
+trainData2 = trainData2 [-grep('loe_morethan6months', colnames(trainData2))]
 
 # Combine train and test data
 df_all <- df_4[-grep('loe_morethan6months',colnames(df_4))]
-X = df_all[df_all$unid %in% trainData$unid,]
-X_test = df_all[df_all$unid %in% testData$unid,]
+X = df_all[df_all$unid %in% trainData2$unid,]
+X_test = df_all[df_all$unid %in% testData2$unid,]
 
 # Converting labels into a matrix
 mat_y <- as.matrix(labels)
